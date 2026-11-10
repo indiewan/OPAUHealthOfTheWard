@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { WardSimulationState, BedSpace } from './types';
+import { WardSimulationState, BedSpace, WardBay } from './types';
 import {
   loadWardState,
   saveWardState,
@@ -18,6 +18,7 @@ import { WardBoard } from './components/WardBoard';
 import { AdminPasswordModal } from './components/AdminPasswordModal';
 import { BedEditModal } from './components/BedEditModal';
 import { ImportExportModal } from './components/ImportExportModal';
+import { BayManagerModal } from './components/BayManagerModal';
 import {
   ShieldAlert,
   Download,
@@ -29,6 +30,8 @@ import {
   X,
   Shuffle,
   AlertTriangle,
+  Sliders,
+  Grid,
 } from 'lucide-react';
 
 export default function App() {
@@ -39,6 +42,7 @@ export default function App() {
   const [editingBed, setEditingBed] = useState<BedSpace | null>(null);
   const [isExportImportModalOpen, setIsExportImportModalOpen] = useState<boolean>(false);
   const [exportImportInitialTab, setExportImportInitialTab] = useState<'export' | 'import' | 'presets'>('export');
+  const [isBayManagerModalOpen, setIsBayManagerModalOpen] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filterService, setFilterService] = useState<string>('ALL');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -60,7 +64,7 @@ export default function App() {
   const handleUnlockAdmin = () => {
     setIsAdmin(true);
     setAdminSession(true);
-    showToast('Admin Mode unlocked! Click any bed space or use quick controls to edit.');
+    showToast('Admin Mode unlocked! Click any bed space or bay header to edit.');
   };
 
   const handleExitAdmin = () => {
@@ -90,6 +94,94 @@ export default function App() {
       };
     });
     showToast(`Saved details for ${updatedBed.bedLabel}`);
+  };
+
+  // Delete bed
+  const handleDeleteBed = (bedId: string) => {
+    setWardState((prev) => ({
+      ...prev,
+      beds: prev.beds.filter((b) => b.id !== bedId),
+    }));
+    showToast('Bed space removed.');
+  };
+
+  // Add bed directly to a bay
+  const handleAddBedToBay = (bayId: string, bayName: string) => {
+    const existingInBay = wardState.beds.filter((b) => b.bayId === bayId);
+    const nextNumber = existingInBay.length + 1;
+    const padded = nextNumber < 10 ? `0${nextNumber}` : `${nextNumber}`;
+    const newBedId = `bed-${bayId}-${Date.now()}`;
+    const newBed: BedSpace = {
+      id: newBedId,
+      bayId,
+      bayName,
+      bedLabel: `Bed ${padded}`,
+      isSideRoom: false,
+      status: 'occupied',
+      patient: {
+        id: `p-${Date.now()}`,
+        name: `SIM PATIENT ${Math.floor(10 + Math.random() * 89)}`,
+        gender: Math.random() > 0.5 ? 'M' : 'F',
+        age: 80,
+      },
+      service: 'OPS',
+      destination: '-',
+      newsScore: Math.floor(Math.random() * 3) + 1,
+      patientInfo: '.',
+      isYellowHighlight: false,
+      hasSwabBanner: false,
+    };
+
+    setWardState((prev) => ({
+      ...prev,
+      beds: [...prev.beds, newBed],
+    }));
+
+    showToast(`Added ${newBed.bedLabel} to ${bayName}`);
+  };
+
+  // Inline rename bay
+  const handleRenameBay = (bayId: string, newName: string) => {
+    setWardState((prev) => {
+      const updatedBays = prev.bays.map((b) => (b.id === bayId ? { ...b, name: newName } : b));
+      const updatedBeds = prev.beds.map((bed) =>
+        bed.bayId === bayId ? { ...bed, bayName: newName } : bed
+      );
+      return {
+        ...prev,
+        bays: updatedBays,
+        beds: updatedBeds,
+      };
+    });
+    showToast(`Renamed bay to "${newName}"`);
+  };
+
+  // Reorder bays left / right
+  const handleMoveBay = (index: number, direction: 'left' | 'right') => {
+    const targetIndex = direction === 'left' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= wardState.bays.length) return;
+
+    setWardState((prev) => {
+      const newBays = [...prev.bays];
+      const temp = newBays[index];
+      newBays[index] = newBays[targetIndex];
+      newBays[targetIndex] = temp;
+      const reordered = newBays.map((b, idx) => ({ ...b, order: idx + 1 }));
+      return {
+        ...prev,
+        bays: reordered,
+      };
+    });
+  };
+
+  // Save all bays and beds from BayManagerModal
+  const handleUpdateBays = (newBays: WardBay[], newBeds: BedSpace[]) => {
+    setWardState((prev) => ({
+      ...prev,
+      bays: newBays,
+      beds: newBeds,
+    }));
+    showToast('Ward bays and layout updated successfully.');
   };
 
   // Quick NEWS increment / decrement on card
@@ -125,7 +217,7 @@ export default function App() {
   const handleImportState = (newState: WardSimulationState) => {
     setWardState(newState);
     saveWardState(newState);
-    showToast(`Successfully loaded simulation with ${newState.beds.length} beds.`);
+    showToast(`Successfully loaded simulation with ${newState.beds.length} beds and ${newState.bays.length} bays.`);
   };
 
   // Manual refresh / countdown trigger
@@ -144,7 +236,6 @@ export default function App() {
     setWardState((prev) => {
       const updatedBeds = prev.beds.map((b) => {
         if (b.status !== 'occupied') return b;
-        // Generate realistic NEWS score distribution: mostly 0-3, occasionally 4-6, rare 7-9
         const r = Math.random();
         let newScore = 1;
         if (r < 0.3) newScore = 0;
@@ -164,7 +255,7 @@ export default function App() {
     showToast('NEWS scores randomized for simulation drill.');
   };
 
-  // Quick Batch Safe Renaming (ensure no clinical real names)
+  // Quick Batch Safe Renaming
   const handleAnonymizeAll = () => {
     setWardState((prev) => {
       let patientCounter = 1;
@@ -206,6 +297,7 @@ export default function App() {
           setExportImportInitialTab('presets');
           setIsExportImportModalOpen(true);
         }}
+        onOpenBayManager={() => setIsBayManagerModalOpen(true)}
         onResetWard={handleResetWard}
         onManualRefresh={handleManualRefresh}
         searchTerm={searchTerm}
@@ -222,11 +314,20 @@ export default function App() {
               ADMIN MODE ACTIVE
             </span>
             <span className="font-medium text-slate-800">
-              Click any bed space to edit patient names, locations, and details. Hover cards for quick NEWS stepper.
+              Click any bay header or bed space to edit. Use arrows to reorder columns.
             </span>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setIsBayManagerModalOpen(true)}
+              className="flex items-center gap-1.5 bg-purple-800 hover:bg-purple-900 text-white font-bold px-2.5 py-1 rounded shadow-2xs transition-colors"
+              title="Rename, renumber, add or reorder bays"
+            >
+              <Grid className="w-3.5 h-3.5" />
+              <span>Manage Bays & Numbering</span>
+            </button>
             <button
               type="button"
               onClick={handleAnonymizeAll}
@@ -250,7 +351,7 @@ export default function App() {
                 setExportImportInitialTab('export');
                 setIsExportImportModalOpen(true);
               }}
-              className="flex items-center gap-1.5 bg-purple-700 hover:bg-purple-800 text-white font-bold px-2.5 py-1 rounded shadow-2xs transition-colors"
+              className="flex items-center gap-1.5 bg-indigo-700 hover:bg-indigo-800 text-white font-bold px-2.5 py-1 rounded shadow-2xs transition-colors"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Export JSON File</span>
@@ -259,13 +360,16 @@ export default function App() {
         </div>
       )}
 
-      {/* 3. Main Ward Whiteboard Board (5 Columns: Bay 01, 02, 03, 05, 06) */}
+      {/* 3. Main Ward Whiteboard Board (Dynamic Columns: Bays) */}
       <main className="flex-1 py-1 px-1 sm:px-2">
         <WardBoard
           wardState={wardState}
           isAdmin={isAdmin}
           onEditBed={handleEditBed}
           onQuickNewsChange={handleQuickNewsChange}
+          onRenameBay={handleRenameBay}
+          onMoveBay={handleMoveBay}
+          onAddBedToBay={handleAddBedToBay}
           searchTerm={searchTerm}
           filterService={filterService}
         />
@@ -282,7 +386,15 @@ export default function App() {
         <div className="flex items-center gap-4 text-[11px] text-slate-600 font-mono">
           <span>Password: <strong>Admin</strong></span>
           <span>·</span>
-          <span>43 Registered Bed Spaces</span>
+          <span>{wardState.bays.length} Bays ({wardState.beds.length} Bed Spaces)</span>
+          <span>·</span>
+          <button
+            type="button"
+            onClick={() => setIsBayManagerModalOpen(true)}
+            className="text-purple-800 hover:text-purple-950 underline font-semibold font-sans"
+          >
+            Manage Bays
+          </button>
           <span>·</span>
           <button
             type="button"
@@ -308,12 +420,22 @@ export default function App() {
       {/* Patient & Bed Space Editor Modal */}
       <BedEditModal
         bed={editingBed}
+        bays={wardState.bays}
         isOpen={isEditModalOpen}
         onClose={() => {
           setIsEditModalOpen(false);
           setEditingBed(null);
         }}
         onSave={handleSaveBed}
+        onDeleteBed={handleDeleteBed}
+      />
+
+      {/* Bay Manager & Renumbering Modal */}
+      <BayManagerModal
+        isOpen={isBayManagerModalOpen}
+        onClose={() => setIsBayManagerModalOpen(false)}
+        wardState={wardState}
+        onUpdateBays={handleUpdateBays}
       />
 
       {/* JSON Import / Export & Presets Modal */}

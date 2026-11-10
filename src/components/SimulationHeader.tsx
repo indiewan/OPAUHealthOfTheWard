@@ -28,6 +28,7 @@ interface SimulationHeaderProps {
   onSearchChange: (value: string) => void;
   filterService: string;
   onFilterServiceChange: (service: string) => void;
+  onOpenBayManager?: () => void;
 }
 
 export const SimulationHeader: React.FC<SimulationHeaderProps> = ({
@@ -43,6 +44,7 @@ export const SimulationHeader: React.FC<SimulationHeaderProps> = ({
   onSearchChange,
   filterService,
   onFilterServiceChange,
+  onOpenBayManager,
 }) => {
   // Live countdown timer for "⏱ 01:55"
   const [countdown, setCountdown] = useState<number>(wardState.refreshIntervalSeconds || 115);
@@ -218,6 +220,18 @@ export const SimulationHeader: React.FC<SimulationHeaderProps> = ({
 
         {/* Right: Simulation Controls (JSON Export/Import, Scenarios, Reset) */}
         <div className="flex items-center gap-2 flex-wrap">
+          {isAdmin && onOpenBayManager && (
+            <button
+              type="button"
+              onClick={onOpenBayManager}
+              className="flex items-center gap-1.5 bg-purple-800 hover:bg-purple-900 text-white px-2.5 py-1 rounded font-bold text-xs transition-colors border border-purple-400/40 shadow-xs"
+              title="Rename, renumber, or reorder ward bays"
+            >
+              <Sliders className="w-3.5 h-3.5" />
+              <span>Manage Bays</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={onOpenExportImport}

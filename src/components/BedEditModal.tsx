@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { BedSpace, BedStatus, PatientGender } from '../types';
-import { X, Save, UserX, AlertTriangle, ShieldAlert, Sparkles, Check } from 'lucide-react';
+import { BedSpace, BedStatus, PatientGender, WardBay } from '../types';
+import { X, Save, AlertTriangle, Sparkles, Trash2, LayoutGrid } from 'lucide-react';
 import { ServiceBadge, DestinationBadge } from './Badges';
 
 interface BedEditModalProps {
   bed: BedSpace | null;
+  bays: WardBay[];
   isOpen: boolean;
   onClose: () => void;
   onSave: (updatedBed: BedSpace) => void;
+  onDeleteBed?: (bedId: string) => void;
 }
 
 const COMMON_SERVICES = ['OPS', 'EACM', 'T.B.T.', 'CARD', 'GMG'];
@@ -16,13 +18,18 @@ const COMMON_FLAGS = ['.', '-', '**', '***', 'EOL', 'NR', 'TEL', '*TEL', 'FALLS'
 
 export const BedEditModal: React.FC<BedEditModalProps> = ({
   bed,
+  bays,
   isOpen,
   onClose,
   onSave,
+  onDeleteBed,
 }) => {
   if (!isOpen || !bed) return null;
 
   const [status, setStatus] = useState<BedStatus>(bed.status);
+  const [bedLabel, setBedLabel] = useState<string>(bed.bedLabel);
+  const [bayId, setBayId] = useState<string>(bed.bayId);
+  const [isSideRoom, setIsSideRoom] = useState<boolean>(bed.isSideRoom);
   const [patientName, setPatientName] = useState(bed.patient?.name || '');
   const [patientGender, setPatientGender] = useState<PatientGender>(bed.patient?.gender || 'M');
   const [patientAge, setPatientAge] = useState<string>(bed.patient?.age ? String(bed.patient.age) : '80');
@@ -44,6 +51,9 @@ export const BedEditModal: React.FC<BedEditModalProps> = ({
   useEffect(() => {
     if (bed) {
       setStatus(bed.status);
+      setBedLabel(bed.bedLabel);
+      setBayId(bed.bayId);
+      setIsSideRoom(bed.isSideRoom);
       setPatientName(bed.patient?.name || `SIM PATIENT ${bed.bedLabel.replace(/\D/g, '') || '01'}`);
       setPatientGender(bed.patient?.gender || 'M');
       setPatientAge(bed.patient?.age ? String(bed.patient.age) : '82');
@@ -66,14 +76,21 @@ export const BedEditModal: React.FC<BedEditModalProps> = ({
     if (status === 'occupied') {
       updatedPatient = {
         id: bed.patient?.id || `p_${Date.now()}`,
-        name: patientName.trim() || `SIM PATIENT ${bed.bedLabel}`,
+        name: patientName.trim() || `SIM PATIENT ${bedLabel}`,
         gender: patientGender,
         age: parseInt(patientAge, 10) || 80,
       };
     }
 
+    const selectedBay = bays.find((b) => b.id === bayId);
+    const assignedBayName = selectedBay ? selectedBay.name : bed.bayName;
+
     const updated: BedSpace = {
       ...bed,
+      bedLabel: bedLabel.trim() || bed.bedLabel,
+      bayId,
+      bayName: assignedBayName,
+      isSideRoom,
       status,
       patient: updatedPatient,
       service: status === 'occupied' ? service : '',
@@ -119,6 +136,15 @@ export const BedEditModal: React.FC<BedEditModalProps> = ({
     setPatientName(`SIM PATIENT ${num}`);
   };
 
+  const handleDelete = () => {
+    if (window.confirm(`Are you sure you want to delete ${bed.bedLabel} from the ward?`)) {
+      if (onDeleteBed) {
+        onDeleteBed(bed.id);
+      }
+      onClose();
+    }
+  };
+
   // NEWS risk scale calculation
   const numericNews = parseInt(newsScore, 10);
   const getNewsRiskText = (score: number) => {
@@ -142,7 +168,7 @@ export const BedEditModal: React.FC<BedEditModalProps> = ({
         <div className="bg-[#383582] text-white px-5 py-3.5 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-extrabold text-base tracking-tight">{bed.bayName} — {bed.bedLabel}</span>
+              <span className="font-extrabold text-base tracking-tight">{bedLabel}</span>
               <span className="bg-white/20 text-white text-[11px] font-bold px-2 py-0.5 rounded">
                 Admin Editor
               </span>
@@ -161,10 +187,62 @@ export const BedEditModal: React.FC<BedEditModalProps> = ({
         </div>
 
         {/* Body */}
-        <div className="p-5 space-y-5 max-h-[80vh] overflow-y-auto text-xs">
+        <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto text-xs">
+          {/* Bed Allocation & Bay Assignment Row */}
+          <div className="bg-slate-100 p-3 rounded-lg border border-slate-300 space-y-2.5">
+            <div className="flex items-center gap-1.5 font-bold text-slate-800 text-xs">
+              <LayoutGrid className="w-4 h-4 text-purple-800" />
+              <span>Bed Space & Bay Allocation</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  Bed Identifier / Label
+                </label>
+                <input
+                  type="text"
+                  value={bedLabel}
+                  onChange={(e) => setBedLabel(e.target.value)}
+                  placeholder="e.g. Bed 01, Side Room 01"
+                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded text-xs font-bold font-mono focus:outline-none focus:ring-1 focus:ring-purple-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  Assigned Bay Column
+                </label>
+                <select
+                  value={bayId}
+                  onChange={(e) => setBayId(e.target.value)}
+                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded text-xs font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                >
+                  {bays.map((bay) => (
+                    <option key={bay.id} value={bay.id}>
+                      {bay.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center pt-5">
+                <label className="flex items-center gap-1.5 text-xs text-slate-800 font-semibold cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isSideRoom}
+                    onChange={(e) => setIsSideRoom(e.target.checked)}
+                    className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500"
+                  />
+                  <span>Is Side Room</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
           {/* Bed Status Radio Selector */}
           <div>
-            <label className="block text-xs font-bold text-slate-800 mb-2">
+            <label className="block text-xs font-bold text-slate-800 mb-1.5">
               Bed Space Status
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -206,9 +284,9 @@ export const BedEditModal: React.FC<BedEditModalProps> = ({
 
           {/* Conditional 1: OCCUPIED FIELDS */}
           {status === 'occupied' && (
-            <div className="space-y-4 pt-1">
+            <div className="space-y-3.5 pt-1">
               {/* Patient Name & Gender */}
-              <div className="bg-slate-50 p-3.5 rounded border border-slate-200 space-y-3">
+              <div className="bg-slate-50 p-3 rounded border border-slate-200 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-slate-800">
                     Patient Simulated Name & Gender
@@ -258,7 +336,7 @@ export const BedEditModal: React.FC<BedEditModalProps> = ({
               </div>
 
               {/* Service & Destination */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Where they are (Service) */}
                 <div className="bg-slate-50 p-3 rounded border border-slate-200 space-y-2">
                   <div className="flex justify-between items-center">
@@ -333,7 +411,7 @@ export const BedEditModal: React.FC<BedEditModalProps> = ({
               </div>
 
               {/* NEWS Score & Clinical Risk */}
-              <div className="bg-slate-50 p-3.5 rounded border border-slate-200 space-y-2.5">
+              <div className="bg-slate-50 p-3 rounded border border-slate-200 space-y-2">
                 <div className="flex justify-between items-center">
                   <label className="font-bold text-slate-800">
                     NEWS Score (Middle Bottom Number)
@@ -350,10 +428,10 @@ export const BedEditModal: React.FC<BedEditModalProps> = ({
                     max="20"
                     value={newsScore}
                     onChange={(e) => setNewsScore(e.target.value)}
-                    placeholder="Enter score (0-20) or leave blank for -"
-                    className="w-32 px-3 py-1.5 border border-slate-300 rounded text-sm font-bold font-mono text-center focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    placeholder="Score (0-20)"
+                    className="w-28 px-3 py-1.5 border border-slate-300 rounded text-sm font-bold font-mono text-center focus:ring-2 focus:ring-purple-500 focus:outline-none"
                   />
-                  <div className="flex gap-1">
+                  <div className="flex flex-wrap gap-1">
                     {[0, 1, 2, 3, 4, 5, 7, 8].map((score) => (
                       <button
                         key={score}
@@ -407,9 +485,6 @@ export const BedEditModal: React.FC<BedEditModalProps> = ({
                   placeholder="e.g. **, ***, EOL, NR, TEL, *TEL, FALLS"
                   className="w-full px-2.5 py-1 text-xs border border-slate-300 rounded font-semibold focus:outline-none focus:ring-1 focus:ring-purple-500 font-mono"
                 />
-                <p className="text-[10px] text-slate-500">
-                  EOL = End of Life, NR = Not for Resuscitation, TEL = Awaiting Telephone Call
-                </p>
               </div>
 
               {/* Infection & Visual Alert Flags */}
@@ -504,7 +579,7 @@ export const BedEditModal: React.FC<BedEditModalProps> = ({
 
           {/* Quick Actions Strip */}
           <div className="pt-2 border-t border-slate-200 flex flex-wrap gap-2 items-center justify-between">
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               {status === 'occupied' && (
                 <button
                   type="button"
@@ -521,6 +596,17 @@ export const BedEditModal: React.FC<BedEditModalProps> = ({
                   className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold rounded text-xs transition-colors"
                 >
                   Mark Closed
+                </button>
+              )}
+              {onDeleteBed && (
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  className="flex items-center gap-1 px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 font-semibold rounded text-xs border border-red-200 transition-colors"
+                  title="Remove this bed space from the bay"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete Bed</span>
                 </button>
               )}
             </div>
