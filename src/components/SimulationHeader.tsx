@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   Layers,
   Search,
+  HelpCircle,
 } from 'lucide-react';
 
 interface SimulationHeaderProps {
@@ -29,6 +30,7 @@ interface SimulationHeaderProps {
   filterService: string;
   onFilterServiceChange: (service: string) => void;
   onOpenBayManager?: () => void;
+  onOpenUserGuide?: () => void;
 }
 
 export const SimulationHeader: React.FC<SimulationHeaderProps> = ({
@@ -45,25 +47,33 @@ export const SimulationHeader: React.FC<SimulationHeaderProps> = ({
   filterService,
   onFilterServiceChange,
   onOpenBayManager,
+  onOpenUserGuide,
 }) => {
   // Live countdown timer for "⏱ 01:55"
-  const [countdown, setCountdown] = useState<number>(wardState.refreshIntervalSeconds || 115);
+  const refreshInterval = wardState.refreshIntervalSeconds || 115;
+  const [countdown, setCountdown] = useState<number>(refreshInterval);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
-  const [showToolbar, setShowToolbar] = useState<boolean>(false);
 
-  // Ticking countdown effect
+  // Ticking countdown effect - decrements by 1 every second
   useEffect(() => {
     const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          onManualRefresh();
-          return wardState.refreshIntervalSeconds || 115;
-        }
-        return prev - 1;
-      });
+      setCountdown((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(timer);
-  }, [wardState.refreshIntervalSeconds, onManualRefresh]);
+  }, []);
+
+  // When countdown reaches 0, trigger refresh safely inside useEffect and reset timer
+  useEffect(() => {
+    if (countdown === 0) {
+      onManualRefresh();
+      setCountdown(refreshInterval);
+    }
+  }, [countdown, onManualRefresh, refreshInterval]);
+
+  const handleTimerClick = () => {
+    setCountdown(refreshInterval);
+    onManualRefresh();
+  };
 
   const formatTimer = (totalSeconds: number) => {
     const mins = Math.floor(totalSeconds / 60);
@@ -136,7 +146,7 @@ export const SimulationHeader: React.FC<SimulationHeaderProps> = ({
           {/* Refresh Timer e.g. ⏱ 01:55 */}
           <button
             type="button"
-            onClick={onManualRefresh}
+            onClick={handleTimerClick}
             className="flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white px-2 py-1 rounded font-mono font-bold text-xs transition-colors"
             title="Click to reset timer & refresh ward"
           >
@@ -252,6 +262,18 @@ export const SimulationHeader: React.FC<SimulationHeaderProps> = ({
             <Layers className="w-3.5 h-3.5" />
             <span>Sim Scenarios</span>
           </button>
+
+          {onOpenUserGuide && (
+            <button
+              type="button"
+              onClick={onOpenUserGuide}
+              className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white px-2.5 py-1 rounded font-medium text-xs transition-colors border border-white/15"
+              title="Open Quick User Guide & Instructions"
+            >
+              <HelpCircle className="w-3.5 h-3.5" />
+              <span>Guide</span>
+            </button>
+          )}
 
           {isAdmin && (
             <button

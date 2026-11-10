@@ -19,6 +19,7 @@ import { AdminPasswordModal } from './components/AdminPasswordModal';
 import { BedEditModal } from './components/BedEditModal';
 import { ImportExportModal } from './components/ImportExportModal';
 import { BayManagerModal } from './components/BayManagerModal';
+import { UserGuideModal } from './components/UserGuideModal';
 import {
   ShieldAlert,
   Download,
@@ -43,6 +44,7 @@ export default function App() {
   const [isExportImportModalOpen, setIsExportImportModalOpen] = useState<boolean>(false);
   const [exportImportInitialTab, setExportImportInitialTab] = useState<'export' | 'import' | 'presets'>('export');
   const [isBayManagerModalOpen, setIsBayManagerModalOpen] = useState<boolean>(false);
+  const [isUserGuideOpen, setIsUserGuideOpen] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filterService, setFilterService] = useState<string>('ALL');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -298,6 +300,7 @@ export default function App() {
           setIsExportImportModalOpen(true);
         }}
         onOpenBayManager={() => setIsBayManagerModalOpen(true)}
+        onOpenUserGuide={() => setIsUserGuideOpen(true)}
         onResetWard={handleResetWard}
         onManualRefresh={handleManualRefresh}
         searchTerm={searchTerm}
@@ -398,6 +401,14 @@ export default function App() {
           <span>·</span>
           <button
             type="button"
+            onClick={() => setIsUserGuideOpen(true)}
+            className="text-purple-800 hover:text-purple-950 underline font-semibold font-sans"
+          >
+            User Guide
+          </button>
+          <span>·</span>
+          <button
+            type="button"
             onClick={() => {
               setExportImportInitialTab('export');
               setIsExportImportModalOpen(true);
@@ -410,6 +421,11 @@ export default function App() {
       </footer>
 
       {/* 5. Modals & Dialogs */}
+      {/* Quick User Guide Modal */}
+      <UserGuideModal
+        isOpen={isUserGuideOpen}
+        onClose={() => setIsUserGuideOpen(false)}
+      />
       {/* Admin Password Prompt Modal */}
       <AdminPasswordModal
         isOpen={isPasswordModalOpen}

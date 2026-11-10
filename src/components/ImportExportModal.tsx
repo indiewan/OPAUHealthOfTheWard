@@ -31,14 +31,24 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
   onImportState,
   initialTab = 'export',
 }) => {
-  if (!isOpen) return null;
-
   const [activeTab, setActiveTab] = useState<'export' | 'import' | 'presets'>(initialTab);
   const [copied, setCopied] = useState(false);
   const [pasteJsonText, setPasteJsonText] = useState('');
   const [importError, setImportError] = useState<string | null>(null);
   const [previewState, setPreviewState] = useState<WardSimulationState | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setActiveTab(initialTab);
+      setPasteJsonText('');
+      setImportError(null);
+      setPreviewState(null);
+      setCopied(false);
+    }
+  }, [isOpen, initialTab]);
+
+  if (!isOpen) return null;
 
   const jsonString = JSON.stringify(wardState, null, 2);
 

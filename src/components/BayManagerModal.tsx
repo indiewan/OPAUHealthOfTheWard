@@ -27,16 +27,25 @@ export const BayManagerModal: React.FC<BayManagerModalProps> = ({
   wardState,
   onUpdateBays,
 }) => {
-  if (!isOpen) return null;
-
-  const [bays, setBays] = useState<WardBay[]>(JSON.parse(JSON.stringify(wardState.bays)));
-  const [beds, setBeds] = useState<BedSpace[]>(JSON.parse(JSON.stringify(wardState.beds)));
+  const [bays, setBays] = useState<WardBay[]>(() => JSON.parse(JSON.stringify(wardState.bays)));
+  const [beds, setBeds] = useState<BedSpace[]>(() => JSON.parse(JSON.stringify(wardState.beds)));
   const [newBayName, setNewBayName] = useState('');
   const [startNumber, setStartNumber] = useState<string>('2');
   const [prefix, setPrefix] = useState<string>('Bay ');
   const [padZero, setPadZero] = useState<boolean>(true);
   const [editingBayId, setEditingBayId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState<string>('');
+
+  // Synchronize state when modal opens
+  React.useEffect(() => {
+    if (isOpen) {
+      setBays(JSON.parse(JSON.stringify(wardState.bays)));
+      setBeds(JSON.parse(JSON.stringify(wardState.beds)));
+      setEditingBayId(null);
+    }
+  }, [isOpen, wardState.bays, wardState.beds]);
+
+  if (!isOpen) return null;
 
   // Handle renaming a bay
   const handleRenameBay = (bayId: string, newName: string) => {

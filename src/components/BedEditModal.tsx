@@ -24,32 +24,30 @@ export const BedEditModal: React.FC<BedEditModalProps> = ({
   onSave,
   onDeleteBed,
 }) => {
-  if (!isOpen || !bed) return null;
-
-  const [status, setStatus] = useState<BedStatus>(bed.status);
-  const [bedLabel, setBedLabel] = useState<string>(bed.bedLabel);
-  const [bayId, setBayId] = useState<string>(bed.bayId);
-  const [isSideRoom, setIsSideRoom] = useState<boolean>(bed.isSideRoom);
-  const [patientName, setPatientName] = useState(bed.patient?.name || '');
-  const [patientGender, setPatientGender] = useState<PatientGender>(bed.patient?.gender || 'M');
-  const [patientAge, setPatientAge] = useState<string>(bed.patient?.age ? String(bed.patient.age) : '80');
-  const [service, setService] = useState(bed.service || 'OPS');
-  const [destination, setDestination] = useState(bed.destination || '-');
+  const [status, setStatus] = useState<BedStatus>(bed?.status || 'occupied');
+  const [bedLabel, setBedLabel] = useState<string>(bed?.bedLabel || 'Bed 01');
+  const [bayId, setBayId] = useState<string>(bed?.bayId || bays[0]?.id || '');
+  const [isSideRoom, setIsSideRoom] = useState<boolean>(bed?.isSideRoom || false);
+  const [patientName, setPatientName] = useState(bed?.patient?.name || '');
+  const [patientGender, setPatientGender] = useState<PatientGender>(bed?.patient?.gender || 'M');
+  const [patientAge, setPatientAge] = useState<string>(bed?.patient?.age ? String(bed.patient.age) : '80');
+  const [service, setService] = useState(bed?.service || 'OPS');
+  const [destination, setDestination] = useState(bed?.destination || '-');
   const [newsScore, setNewsScore] = useState<string>(
-    bed.newsScore !== null && bed.newsScore !== undefined ? String(bed.newsScore) : ''
+    bed?.newsScore !== null && bed?.newsScore !== undefined ? String(bed.newsScore) : ''
   );
-  const [patientInfo, setPatientInfo] = useState(bed.patientInfo || '.');
-  const [isYellowHighlight, setIsYellowHighlight] = useState(bed.isYellowHighlight || false);
-  const [hasSwabBanner, setHasSwabBanner] = useState(bed.hasSwabBanner || false);
+  const [patientInfo, setPatientInfo] = useState(bed?.patientInfo || '.');
+  const [isYellowHighlight, setIsYellowHighlight] = useState(bed?.isYellowHighlight || false);
+  const [hasSwabBanner, setHasSwabBanner] = useState(bed?.hasSwabBanner || false);
 
   // Closed details
-  const [closedReason, setClosedReason] = useState(bed.closedDetails?.reason || 'Pt in endoscopy');
-  const [closedTime, setClosedTime] = useState(bed.closedDetails?.timestamp || '09/11 11:59PM');
-  const [closedTag, setClosedTag] = useState(bed.closedDetails?.tag || 'Closed Beds');
+  const [closedReason, setClosedReason] = useState(bed?.closedDetails?.reason || 'Pt in endoscopy');
+  const [closedTime, setClosedTime] = useState(bed?.closedDetails?.timestamp || '09/11 11:59PM');
+  const [closedTag, setClosedTag] = useState(bed?.closedDetails?.tag || 'Closed Beds');
 
   // Reset form when bed changes
   useEffect(() => {
-    if (bed) {
+    if (isOpen && bed) {
       setStatus(bed.status);
       setBedLabel(bed.bedLabel);
       setBayId(bed.bayId);
@@ -67,7 +65,9 @@ export const BedEditModal: React.FC<BedEditModalProps> = ({
       setClosedTime(bed.closedDetails?.timestamp || '09/11 11:59PM');
       setClosedTag(bed.closedDetails?.tag || 'Closed Beds');
     }
-  }, [bed]);
+  }, [isOpen, bed]);
+
+  if (!isOpen || !bed) return null;
 
   const handleSave = () => {
     const parsedNews = newsScore.trim() === '' ? null : Math.max(0, Math.min(20, parseInt(newsScore, 10) || 0));
