@@ -1,0 +1,6 @@
+{
+  "name": "Health of the Ward - OPAU Simulation",
+  "description": "Simulated hospital ward electronic whiteboard for Older Persons Admissions Unit (OPAU) transformation simulations, featuring bed management, NEWS scores, discharge tracking, admin mode, and JSON export/import.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
